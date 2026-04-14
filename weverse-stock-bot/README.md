@@ -7,6 +7,7 @@ Bot en Python para monitorear una URL de producto en Weverse Shop y enviar alert
 - Revisión de stock por `requests` + `BeautifulSoup` (rápido).
 - Fallback automático con `Playwright` para páginas con JavaScript.
 - Alertas por Telegram con anti-duplicados.
+- Comando Telegram `/ping` para validar vida del bot.
 - Logs en consola y en `bot.log`.
 - Mensajes, alertas y avisos en español.
 
@@ -48,6 +49,14 @@ python bot.py --test-alert
 python bot.py --healthcheck
 python bot.py --once
 ```
+
+Validaciones rápidas:
+
+- `python bot.py --test-alert`: valida envío a Telegram.
+- `python bot.py --healthcheck`: valida scraping una vez.
+- Desde Telegram: envía `/ping` al chat/grupo configurado y el bot responderá que está activo.
+
+Al iniciar, el bot envía automáticamente un saludo de arranque y confirma que comenzó a monitorear.
 
 ## Docker (recomendado para VPS)
 

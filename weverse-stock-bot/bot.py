@@ -7,7 +7,7 @@ from colorama import init, Fore, Style
 
 from config import CHECK_INTERVAL, TARGET_URL, USE_PLAYWRIGHT
 from checker import check_stock
-from notifier import send_alert
+from notifier import send_alert, send_startup_message, process_telegram_commands
 
 # Initialize colorama for colored terminal output
 init(autoreset=True)
@@ -56,11 +56,16 @@ def main():
     logger.info(f"URL monitoreada: {TARGET_URL}")
     logger.info(f"Intervalo de revisión: {CHECK_INTERVAL} segundos (+ jitter aleatorio)")
     logger.info(f"Fallback con Playwright: {'Activado' if USE_PLAYWRIGHT else 'Desactivado'}")
+    if send_startup_message(TARGET_URL, CHECK_INTERVAL, USE_PLAYWRIGHT):
+        logger.info(f"{Fore.GREEN}Mensaje de inicio enviado a Telegram.")
+    else:
+        logger.warning(f"{Fore.YELLOW}No se pudo enviar el mensaje de inicio a Telegram.")
     
     alert_triggered = False
 
     while True:
         try:
+            process_telegram_commands()
             logger.info(f"{Fore.LIGHTBLACK_EX}Revisando stock...")
             stock_available = check_stock()
             
