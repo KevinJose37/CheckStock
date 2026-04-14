@@ -1,0 +1,7 @@
+services:
+  weverse-stock-bot:
+    build: .
+    container_name: weverse-stock-bot
+    env_file:
+      - .env
+    restart: unless-stopped
