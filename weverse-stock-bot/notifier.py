@@ -1,12 +1,13 @@
 import requests
 import logging
+import html
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
 logger = logging.getLogger(__name__)
 
 _last_update_id = None
 
-def send_telegram_message(message: str) -> bool:
+def send_telegram_message(message: str, parse_mode: str = "HTML") -> bool:
     """
     Sends a message to the configured Telegram chat.
     """
@@ -16,18 +17,28 @@ def send_telegram_message(message: str) -> bool:
         
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
+        "chat_id": str(TELEGRAM_CHAT_ID),
         "text": message,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": False
+        "disable_web_page_preview": False,
     }
+    if parse_mode:
+        payload["parse_mode"] = parse_mode
     
     try:
-        response = requests.post(url, json=payload, timeout=10)
+        # Enviamos como query/body form para garantizar que Telegram reciba chat_id/text.
+        response = requests.post(url, params=payload, timeout=10)
         response.raise_for_status()
         return True
     except requests.exceptions.RequestException as e:
-        logger.error(f"No se pudo enviar el mensaje de Telegram: {e}")
+        details = ""
+        response_obj = getattr(e, "response", None)
+        if response_obj is not None:
+            details = f" | Respuesta Telegram: {response_obj.text}"
+            # Si falla parse_mode HTML por entidades inválidas, reintenta como texto plano.
+            if response_obj.status_code == 400 and parse_mode == "HTML":
+                logger.warning("Fallo con parse_mode=HTML. Reintentando envío en texto plano...")
+                return send_telegram_message(message, parse_mode=None)
+        logger.error(f"No se pudo enviar el mensaje de Telegram: {e}{details}")
         return False
 
 def send_alert(url: str, is_test: bool = False) -> bool:
@@ -40,10 +51,11 @@ def send_alert(url: str, is_test: bool = False) -> bool:
     if is_test:
         text = f"🧪 <b>ALERTA DE PRUEBA</b> 🧪\n\nTu bot de stock de Weverse está configurado correctamente.\n🕒 Fecha y hora: {now}"
     else:
+        safe_url = html.escape(url, quote=True).replace("&", "&amp;")
         text = (
             f"🚨 <b>¡STOCK DETECTADO!</b> 🚨\n\n"
             f"El producto ya no aparece como AGOTADO o el botón de compra fue habilitado.\n\n"
-            f"🛒 <a href='{url}'>Haz clic aquí para comprar</a>\n"
+            f"🛒 <a href='{safe_url}'>Haz clic aquí para comprar</a>\n"
             f"🕒 Fecha y hora: {now}"
         )
     
@@ -55,10 +67,11 @@ def send_startup_message(url: str, check_interval: int, use_playwright: bool) ->
     Envía un saludo al iniciar el bot para confirmar que quedó activo.
     """
     estado_playwright = "activado" if use_playwright else "desactivado"
+    safe_url = html.escape(url, quote=True).replace("&", "&amp;")
     text = (
         "👋 <b>Bot iniciado correctamente</b>\n\n"
         "Ya comencé a monitorear el stock.\n"
-        f"🔗 URL: <a href='{url}'>Producto monitoreado</a>\n"
+        f"🔗 URL: <a href='{safe_url}'>Producto monitoreado</a>\n"
         f"⏱️ Intervalo: {check_interval} segundos\n"
         f"🧠 Fallback Playwright: {estado_playwright}\n\n"
         "Comando disponible: /ping"
